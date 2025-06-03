@@ -28,7 +28,7 @@ export default async function handler(request, response) {
 
     // 6) Send the chat completion request (v4+ style)
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo", // or "gpt-4" if you have access
+      model: "gpt-4", // or "gpt-4" if you have access
       messages: [
         { role: "system", content: "You are a helpful assistant." },
         { role: "user", content: message },
