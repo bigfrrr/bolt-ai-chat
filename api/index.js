@@ -1,26 +1,34 @@
 // api/index.js
 
-import { Configuration, OpenAIApi } from "openai";
+// 1) Import the default OpenAI client class
+import OpenAI from "openai";
 
-// 1) Initialize OpenAI with the secret key from environment variables
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(configuration);
-
-// 2) The serverless function handler
 export default async function handler(request, response) {
-  // 2a) Allow CORS so browser requests from any domain will work
+  // 2) Set CORS headers so your Bolt.New front-end can call this endpoint from any origin
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
+  // 3) If someone does a GET (or any non-POST), return a simple text message instead of crashing
+  if (request.method !== "POST") {
+    return response
+      .status(200)
+      .send(
+        "This endpoint expects a POST with JSON: { \"message\": \"…\" }."
+      );
+  }
+
   try {
-    // 2b) Parse the incoming JSON body, expecting { "message": "..." }
+    // 4) Parse the incoming JSON body: { "message": "Hello AI" }
     const { message } = await request.json();
 
-    // 2c) Call OpenAI’s Chat Completion endpoint
-    const completion = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo", // or "gpt-4" if your account has access
+    // 5) Create an OpenAI client instance using your API key
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    // 6) Send the chat completion request (v4+ style)
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo", // or "gpt-4" if you have access
       messages: [
         { role: "system", content: "You are a helpful assistant." },
         { role: "user", content: message },
@@ -28,13 +36,16 @@ export default async function handler(request, response) {
       max_tokens: 150,
     });
 
-    // 2d) Extract the AI’s reply from the response
-    const aiReply = completion.data.choices[0].message.content;
+    // 7) Extract the AI’s reply text
+    const aiReply = completion.choices[0].message.content;
 
-    // 2e) Send back a JSON response: { "reply": "..." }
-    response.status(200).json({ reply: aiReply });
+    // 8) Return { reply: "..." } as JSON
+    return response.status(200).json({ reply: aiReply });
   } catch (error) {
-    console.error("Error in OpenAI request:", error);
-    response.status(500).json({ error: "Internal Server Error" });
+    // 9) If anything goes wrong, log it so you can inspect in Vercel’s runtime logs
+    console.error("OPENAI ERROR:", error);
+
+    // 10) Send a generic 500 Internal Server Error
+    return response.status(500).json({ error: "Internal Server Error" });
   }
 }
